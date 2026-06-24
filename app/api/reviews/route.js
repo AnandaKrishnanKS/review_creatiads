@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import fs from 'fs';
+import { cookies } from 'next/headers';
 
 export async function GET(req) {
   try {
+    const crmPassword = process.env.CRM_PASSWORD;
+    if (crmPassword) {
+      const cookieStore = await cookies();
+      const session = cookieStore.get('crm_session');
+      if (!session || session.value !== 'authenticated') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    }
+
     const { searchParams } = new URL(req.url);
     const location = searchParams.get('location');
     const rating = searchParams.get('rating');

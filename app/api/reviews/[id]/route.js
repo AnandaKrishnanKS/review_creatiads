@@ -1,9 +1,25 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import fs from 'fs';
+import { cookies } from 'next/headers';
+
+async function verifyAuth() {
+  const crmPassword = process.env.CRM_PASSWORD;
+  if (crmPassword) {
+    const cookieStore = await cookies();
+    const session = cookieStore.get('crm_session');
+    if (!session || session.value !== 'authenticated') {
+      return false;
+    }
+  }
+  return true;
+}
 
 export async function PATCH(req, { params }) {
   try {
+    if (!(await verifyAuth())) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const resolvedParams = await params;
     const id = resolvedParams.id;
     const { status, client_notes } = await req.json();
@@ -72,6 +88,9 @@ export async function PATCH(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
+    if (!(await verifyAuth())) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const resolvedParams = await params;
     const id = resolvedParams.id;
 

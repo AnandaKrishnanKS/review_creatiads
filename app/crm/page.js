@@ -15,6 +15,9 @@ export default function CRMDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [authError, setAuthError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isShaking, setIsShaking] = useState(false);
+
 
   // Filters and sorting state
   const [search, setSearch] = useState("");
@@ -48,14 +51,17 @@ export default function CRMDashboard() {
         const data = await res.json();
         setDbMode(data.dbMode);
         setAuthRequired(data.authRequired);
-        if (!data.authRequired) {
+        if (data.isAuthenticated) {
           setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
         }
       }
     } catch (err) {
       setDbMode("local");
     }
   }, []);
+
 
   // Fetch reviews (only if authenticated)
   const loadReviews = useCallback(async () => {
@@ -110,13 +116,36 @@ export default function CRMDashboard() {
       const data = await res.json();
       if (res.ok && data.authenticated) {
         setIsAuthenticated(true);
+        setPasswordInput("");
+        setAuthError("");
       } else {
         setAuthError(data.error || "Incorrect password");
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 500);
       }
     } catch (err) {
       setAuthError("Failed to connect to authentication server.");
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 500);
     }
   };
+
+  // Auth logout handler
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/auth", { method: "DELETE" });
+      if (res.ok) {
+        setIsAuthenticated(false);
+        setPasswordInput("");
+        setAuthError("");
+      } else {
+        alert("Failed to sign out.");
+      }
+    } catch (err) {
+      alert("Error logging out.");
+    }
+  };
+
 
   // Derived metrics
   const totalReviews = reviews.length;
@@ -202,24 +231,17 @@ export default function CRMDashboard() {
   // 1. Authentication Prompt Screen (if required and not authenticated)
   if (authRequired && !isAuthenticated) {
     return (
-      <div className="crm-portal-body" style={{ alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#0b0f19" }}>
-        <div style={{
-          width: "100%",
-          maxWidth: "420px",
-          padding: "40px",
-          background: "rgba(17, 24, 39, 0.6)",
-          backdropFilter: "blur(20px)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          borderRadius: "20px",
-          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.3)",
-          textAlign: "center"
-        }}>
-          <div className="logo-container" style={{ margin: "0 auto 24px auto" }}>
+      <div className="crm-portal-body" style={{ alignItems: "center", justifyContent: "center", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+        {/* Animated ambient backlights */}
+        <div className="login-glow-bg"></div>
+
+        <div className={`login-card ${isShaking ? "shake-animation" : ""}`}>
+          <div className="logo-container" style={{ margin: "0 auto 24px auto", boxShadow: "0 0 20px var(--primary-glow)" }}>
             <svg viewBox="0 0 24 24" width="24" height="24">
               <path d="M12 2A10 10 0 0 0 2 12a9.9 9.9 0 0 0 2.27 6.36c.07.08.16.14.26.17l.08.02 5.09-1.27a8 8 0 0 1 8.6 0l5.09 1.27.08-.02c.1-.03.19-.09.26-.17A9.9 9.9 0 0 0 22 12 10 10 0 0 0 12 2zm0 15a5 5 0 1 1 5-5 5 5 0 0 1-5 5z" />
             </svg>
           </div>
-          <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.75rem", fontWeight: 700, marginBottom: "8px", color: "#fff" }}>
+          <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.75rem", fontWeight: 700, marginBottom: "8px", color: "#fff", letterSpacing: "-0.02em" }}>
             CRM Access Portal
           </h2>
           <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "24px" }}>
@@ -235,33 +257,61 @@ export default function CRMDashboard() {
               padding: "10px 14px",
               fontSize: "0.85rem",
               marginBottom: "20px",
-              textAlign: "left"
+              textAlign: "left",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
             }}>
-              ⚠️ {authError}
+              <span>⚠️</span>
+              <span>{authError}</span>
             </div>
           )}
 
           <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: "20px", textAlign: "left" }}>
-              <label htmlFor="password" className="filter-label" style={{ display: "block", marginBottom: "8px" }}>Password</label>
-              <input
-                type="password"
-                id="password"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className="search-input"
-                style={{ paddingLeft: "16px" }}
-                placeholder="••••••••"
-                required
-                autoFocus
-              />
+            <div style={{ marginBottom: "24px", textAlign: "left" }}>
+              <label htmlFor="password" className="filter-label" style={{ display: "block", marginBottom: "8px", fontSize: "0.75rem", letterSpacing: "0.05em" }}>Password</label>
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  className="search-input"
+                  style={{ paddingLeft: "16px" }}
+                  placeholder="••••••••"
+                  required
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
             <button
               type="submit"
               className="btn btn-primary"
-              style={{ width: "100%", padding: "12px", fontSize: "1rem", borderRadius: "10px" }}
+              style={{ width: "100%", padding: "14px", fontSize: "1rem", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
             >
               Sign In
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
             </button>
           </form>
         </div>
@@ -391,8 +441,37 @@ export default function CRMDashboard() {
         </div>
 
         <div className="sidebar-footer">
-          <div className="sidebar-footer-content">
-            <p>System Version 1.0.0</p>
+          <div className="sidebar-footer-content" style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+            {authRequired && (
+              <button
+                onClick={handleLogout}
+                className="btn-logout"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  width: "100%",
+                  padding: "10px",
+                  background: "rgba(239, 68, 68, 0.1)",
+                  border: "1px solid rgba(239, 68, 68, 0.2)",
+                  color: "#fca5a5",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontWeight: "600",
+                  fontSize: "0.85rem",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span className="menu-text">Sign Out</span>
+              </button>
+            )}
+            <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--text-muted)", textAlign: "center" }}>System Version 1.0.0</p>
           </div>
         </div>
       </aside>
