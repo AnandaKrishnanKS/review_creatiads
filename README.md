@@ -1,3 +1,5 @@
+Configure DATABASE_URL and CRM_PASSWORD in your local environment before running the app. Do not commit credentials.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
